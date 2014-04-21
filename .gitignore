@@ -1,1 +1,3 @@
-*.pyc
+/*.pyc
+/merger/*.pyc
+/merger/utils/*.pyc
