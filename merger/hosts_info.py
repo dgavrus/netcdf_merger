@@ -1,4 +1,5 @@
 from urllib import thishost
+from Tkconstants import LAST
 
 
 class HostsInfo:
@@ -11,7 +12,7 @@ class HostsInfo:
         hosts = []
         for f in files:
             hosts.append(HostsInfo(f, parser.parse_nodes(path + f)))
-        return hosts
+        return hosts     
            
 class Node:
     def __init__(self, type, switch, number):
@@ -31,3 +32,5 @@ class Node:
         elif int(node1.number) > int(node2.number): return 1
         elif int(node1.number) < int(node2.number): return -1
         return 0
+    
+    

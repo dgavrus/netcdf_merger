@@ -14,6 +14,7 @@ path = config.path + "/"
 
 # get files list without merged file
 files = filter(lambda f: f.endswith(".txt") and not f.startswith("merged"), listdir(path))
+filename_first_part = re.search("^\D+", files[0]).group()
 
 hosts_files_list = HostsInfo.get_hosts_list(files, NodeParser(), path)
  
@@ -21,17 +22,29 @@ i = 0
 
 nodes = NodeParser.get_nodes_list(hosts_files_list)
 nodes_len = nodes.__len__()
-
-node_for_mapping_set = set()
     
 file_matrix_mapping = numpy.zeros((nodes_len, nodes_len))
 
+not_mapped = nodes_len * nodes_len
+
 for hosts in hosts_files_list:
-    for node in hosts.nodes:
-        node_name = node.get_node_name()
-        if not node_name in node_for_mapping_set:
-            node_for_mapping_set.add(node_name)
-    
+    for i in xrange(hosts.nodes.__len__()):
+        for j in xrange(i + 1, hosts.nodes.__len__()):
+            if not_mapped <= 0:
+                break
+            node_i = nodes.index(hosts.nodes[i].get_node_name())
+            node_j = nodes.index(hosts.nodes[j].get_node_name())
+            if file_matrix_mapping[node_i, node_j] == 0:
+                file_matrix_mapping[node_i, node_j] = int(re.search("\d+", hosts.filename).group()) + 1
+                file_matrix_mapping[node_j, node_i] = int(re.search("\d+", hosts.filename).group()) + 1
+                not_mapped -= 2
+        else: continue
+        break
+    else: continue
+    break
+
+
+
 matrix = []
 merged_hosts_file_list = []
 merge = True
@@ -68,60 +81,42 @@ if merge:
         
         fill_var = False
         
-        for f in files:
-            if(f.startswith("merged")):
-                continue 
-            h_file = open(path + f.replace(type, "hosts.txt"))
-            names = h_file.readlines();
-            names = [x.strip() for x in names]
-            rootgrp = Dataset(path + f, 'r', format='NETCDF3_64BIT')
-            if not fill_var:
-                fill_var = True
-                print test_type[:]
-                test_type[:] = rootgrp.variables[u'test_type'][:]
-                print test_type[:]
-                print data_type[:]
-                data_type[:] = rootgrp.variables[u'data_type'][:]
-                print data_type[:]
-                begin_mes_length[:] = rootgrp.variables[u'begin_mes_length'][:]
-                end_mes_length[:] = rootgrp.variables[u'end_mes_length'][:]
-                step_length[:] = rootgrp.variables[u'step_length'][:]
-                noise_mes_length[:] = rootgrp.variables[u'noise_mes_length'][:]
-                num_noise_mes[:] = rootgrp.variables[u'num_noise_mes'][:]
-                num_noise_proc[:] = rootgrp.variables[u'num_noise_proc'][:]
-                num_repeates[:] = rootgrp.variables[u'num_repeates'][:]
-            for nn in names:
-                for nnn in names[names.index(nn) + 1:]:
-                    for ii in xrange(10):
-                        inn = names.index(nn)
-                        innn = names.index(nnn)
-                        if(inn == innn): exit()
-                        val_ij = rootgrp.variables['data'][ii][inn][innn]
-                        val_ji = rootgrp.variables['data'][ii][innn][inn]
-                        if(str(val_ij).startswith("0.0")): print nn + " " + nnn
-                        if(str(val_ji).startswith("0.0")): print nnn + " " + nn
-                        inn = nodes.index(nn)
-                        innn = nodes.index(nnn)
-                        if(inn == innn): exit()
-                        data[ii, inn, innn] = val_ij
-                        data[ii, innn, inn] = val_ji
+        for i in xrange(nodes_len):
+            for j in xrange(i + 1, nodes_len):
+                if int(file_matrix_mapping[i, j]) == 0:
+                    continue
+                filename = filename_first_part + str(int(file_matrix_mapping[i, j]) - 1) + "_" + type
+                rootgrp = Dataset(path + filename, 'r', format='NETCDF3_64BIT')
+                if not fill_var:
+                    fill_var = True
+                    print test_type[:]
+                    test_type[:] = rootgrp.variables[u'test_type'][:]
+                    print test_type[:]
+                    print data_type[:]
+                    data_type[:] = rootgrp.variables[u'data_type'][:]
+                    print data_type[:]
+                    begin_mes_length[:] = rootgrp.variables[u'begin_mes_length'][:]
+                    end_mes_length[:] = rootgrp.variables[u'end_mes_length'][:]
+                    step_length[:] = rootgrp.variables[u'step_length'][:]
+                    noise_mes_length[:] = rootgrp.variables[u'noise_mes_length'][:]
+                    num_noise_mes[:] = rootgrp.variables[u'num_noise_mes'][:]
+                    num_noise_proc[:] = rootgrp.variables[u'num_noise_proc'][:]
+                    num_repeates[:] = rootgrp.variables[u'num_repeates'][:]
+                h_file = open(path + filename.replace(type, "hosts.txt"))
+                names = h_file.readlines();
+                names = [x.strip() for x in names]
+                print str(i) + " " + str(j)
+                file_index_i = names.index(nodes[i])
+                file_index_j = names.index(nodes[j])
+                for ii in xrange(10):
+                    data[ii, i, j] = rootgrp.variables['data'][ii][file_index_i][file_index_j]
+                    data[ii, j, i] = rootgrp.variables['data'][ii][file_index_j][file_index_i]
     
-            rootgrp.close()
+                rootgrp.close()
         merge_cdf.close()
     
 f = open(path + "merged_hosts.txt", 'w')
 for n in nodes:
     f.write(n + '\n')
 f.close()
-merge_cdf = Dataset(path + "merged_average.nc", 'r', format="NETCDF3_64BIT")
-print merge_cdf.variables['data']
-test119 = Dataset(path + "testtest119_average.nc", 'r', format="NETCDF3_64BIT")
-print test119.variables['data']
-
-print len(merge_cdf.variables.values())
-l = len(test119.variables.values())
-
-for i in xrange(l):
-    print merge_cdf.variables.values()[i], test119.variables.values()[i]
-    print merge_cdf.variables.values()[i][:], test119.variables.values()[i][:]
 
