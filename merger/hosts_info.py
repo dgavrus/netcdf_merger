@@ -5,6 +5,13 @@ class HostsInfo:
     def __init__(self, filename, nodes):
         self.filename = filename
         self.nodes = nodes
+    
+    @staticmethod
+    def get_hosts_list(files, parser, path):
+        hosts = []
+        for f in files:
+            hosts.append(HostsInfo(f, parser.parse_nodes(path + f)))
+        return hosts
            
 class Node:
     def __init__(self, type, switch, number):
